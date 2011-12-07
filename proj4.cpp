@@ -39,6 +39,7 @@ public:
     rgb color;
     GLfloat x;
     GLfloat y;
+    GLfloat rot_angle;
 };
 
 
@@ -61,100 +62,21 @@ GLint picture_height;
 static const GLint iters = 200;
 static GLint num_cones = 32;
 cone* cones;
+bool sites = false;
+static const GLfloat rotate_vec[] = {0,0,1};
+bool is_rotating = false;
+bool is_pict = false;
+GLfloat t = 0;
 
 /* --------------------------------------------- */
 
 using namespace std;
-
-GLfloat mini(GLfloat x, GLfloat y)
-{
-    if(x < y)
-        return x;
-    else
-        return y;
-}
-
-GLfloat maxi(GLfloat x, GLfloat y)
-{
-    if(x > y)
-        return x;
-    else
-        return y;
-}
-
-void makeUnit(GLfloat a[])
-{
-    GLfloat length;
-    length = sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2]);
-    for(int i = 0; i < 3; i++)
-    {
-        a[i] /= length;
-    }
-    return;
-}
-
-void cross(GLfloat a[],GLfloat b[], GLfloat n[])
-{
-    n[0] = a[1]*b[2] - b[1]*a[2];
-    n[1] = b[0]*a[2] - a[0]*b[2];
-    n[2] = a[0]*b[1] - b[0]*a[1];
-    return;
-}
-
-double dot(GLfloat a[], GLfloat b[])
-{
-	double x = 0;
-	for(int i = 0; i < 3; i++)
-	{
-		x += a[i]*b[i];
-	}
-	return x;
-}
-
-void subtract(GLfloat a[],GLfloat b[], GLfloat r[])
-{
-	for(int i = 0; i < 3; i++)
-	{
-		r[i] = a[i] - b[i];
-	}
-}
-
-void add(GLfloat a[],GLfloat b[], GLfloat r[])
-{
-	for(int i = 0; i < 3; i++)
-	{
-		r[i] = a[i] + b[i];
-	}
-}
-
-GLfloat *make_unit(GLfloat *normal)
-{
-    GLfloat mag = 0; 
-    mag = sqrt(normal[0]*normal[0] + normal[1]*normal[1] + normal[2]*normal[2]);
-    for(int i = 0; i < 3; i++)
-    {
-        normal[i] /= mag;
-    }
-    
-    return normal;
-}
-
-GLfloat *calc_tex_coord(GLfloat *normal)
-{
-    GLfloat *pixel;
-    normal = make_unit(normal);
-    pixel = new GLfloat[2];
-    pixel[0] = (1 + normal[0])/2;
-    pixel[1] = (1 + normal[1])/2;
-    return pixel;
-}
 
 GLvoid gen_cones()
 {
     cones = new cone[num_cones];
     for(int i = 0; i < num_cones; i++)
     {
-//        srand(time(0));
         GLfloat tmpx = (GLfloat)rand()/RAND_MAX;
         GLfloat tmpy = (GLfloat)rand()/RAND_MAX;
         cones[i].x = tmpx*2-1;
@@ -162,31 +84,8 @@ GLvoid gen_cones()
         cones[i].color.r = rand()%255 + 1;
         cones[i].color.g = rand()%255 + 1;
         cones[i].color.b = rand()%255 + 1;
-//        cones[i].color.r = 255/(i+1);
-//        cones[i].color.g = 255/(i+1);
-//        cones[i].color.b = 255/(i+1);
-
-        printf("Cone %i: %i %i %i\n", i, cones[i].color.r,cones[i].color.g,cones[i].color.b);
+        cones[i].rot_angle = rand()%10 + 1;
     }
-}
-
-GLvoid init_lightsource (  )
-{
-  GLfloat light_ambient[] = { 1,1,1,1};
-  GLfloat light_diffuse[] = { 1,1,1,1};
-  GLfloat light_specular[] = {1,1,1,1};
-  GLfloat light_position[] = { -2.0, -2.0, -2.0, 0.0 };
-
-  glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient);
-  glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);
-  glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular);
-  glLightfv(GL_LIGHT0, GL_POSITION, light_position);
-  glLightf(GL_LIGHT0,GL_CONSTANT_ATTENUATION,1.0);
-  glLightf(GL_LIGHT0,GL_LINEAR_ATTENUATION,0.0);
-  glLightf(GL_LIGHT0,GL_QUADRATIC_ATTENUATION,0.0);
-
-  glEnable(GL_LIGHTING);
-  glEnable(GL_LIGHT0);
 }
 
 rgb* read_ppm_file(const char* filename)
@@ -217,36 +116,46 @@ rgb* read_ppm_file(const char* filename)
     return pixels;
 }
 
-GLvoid set_material_properties ( GLfloat r, GLfloat g, GLfloat b )
-{
-  GLfloat mat_specular[4] = { 0.0, 0.0, 0.0, 1.0 };
-  GLfloat mat_ambient_and_diffuse[4] = { 0.5, 0.5, 0.5, 1.0 };
-  GLfloat mat_shininess[1] = { 0.0 };
-
-  mat_specular[0] = mat_ambient_and_diffuse[0] = r;
-  mat_specular[1] = mat_ambient_and_diffuse[1] = g;
-  mat_specular[2] = mat_ambient_and_diffuse[2] = b;
-
-  glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);
-  glMaterialfv(GL_FRONT, GL_SHININESS, mat_shininess);
-  glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, mat_ambient_and_diffuse);
-
-}
-
-/* --------------------------------------------- */
-/*
-*/
-
 GLuint draw_cone(GLint cone_num)
 {
-    GLfloat r = (GLfloat)cones[cone_num].color.r/255;
-    GLfloat g = (GLfloat)cones[cone_num].color.g/255;
-    GLfloat b = (GLfloat)cones[cone_num].color.b/255;
+    GLfloat r, g, b;
+    if(is_pict){
+        GLfloat scalex = picture_width*(cones[cone_num].x + 1)/2.0;
+        GLfloat scaley = picture_height*(-cones[cone_num].y + 1)/2.0;
+
+        GLint ix = (int)(scalex+0.5);
+        GLint iy = (int)(scaley+0.5);
+
+        if(ix < 0)
+            ix = 0;
+        if(ix >= picture_width)
+            ix = picture_width-1;
+        if(iy < 0)
+            iy = 0;
+        if(iy >= picture_height)
+            iy = picture_height-1;
+
+        rgb color = picture[ix+iy*picture_width];
+        r = color.r/255.0;
+        g = color.g/255.0;
+        b = color.b/255.0;
+    }else{
+        r = (GLfloat)cones[cone_num].color.r/255;
+        g = (GLfloat)cones[cone_num].color.g/255;
+        b = (GLfloat)cones[cone_num].color.b/255;
+    }
 
     glPushMatrix();
-    set_material_properties(r, g, b);
 
+
+    if(is_rotating)
+    {
+        t += .001;
+    }
+    glRotatef(t*cones[cone_num].rot_angle, 0,0,1);
     glTranslatef(cones[cone_num].x, cones[cone_num].y, 0);
+
+    glColor3f(r, g, b);
 
     glBegin(GL_TRIANGLE_FAN);
 
@@ -261,21 +170,19 @@ GLuint draw_cone(GLint cone_num)
     glVertex3f(1,0,1);
 
     glEnd();
-    glPopMatrix();
-}
 
-GLuint draw_sites()
-{
-    set_material_properties(1, 1, 1);
+    if(sites){
 
-    glBegin(GL_POINTS);
+        glColor3f(0,0,0);
 
-    for(GLint i = 0; i < num_cones; i++)
-    {
-        glVertex3f(cones[i].x, cones[i].y, -0.5);
+        glBegin(GL_POINTS);
+
+        glVertex3f(0, 0, -0.5);
+
+        glEnd();
     }
 
-    glEnd();
+    glPopMatrix();
 }
 
 GLuint draw_cones ( )
@@ -283,14 +190,10 @@ GLuint draw_cones ( )
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    draw_sites();
-
     for(GLint i = 0; i < num_cones; i++)
     {
         draw_cone(i);
     }
-
-    draw_sites();
 }
 
 /* --------------------------------------------- */
@@ -305,7 +208,7 @@ GLvoid draw()
   glOrtho(-1,1,-1,1,1,-3);
 
   /* initialize light */
-  init_lightsource();
+//  init_lightsource();
 
   /* ensure we're drawing to the correct GLUT window */
   glutSetWindow(wid);
@@ -396,15 +299,19 @@ GLvoid menu ( int value )
         gen_cones();
         break;
     case MENU_SITES:
+        sites = !sites;
         break;
     case MENU_RESET:
+        t = 0;
         num_cones = 32;
         delete [] cones;
         gen_cones();
         break;
     case MENU_MOVE_STOP:
+        is_rotating = !is_rotating;
         break;
     case MENU_COLORING:
+        is_pict = !is_pict;
         break;
     }
 }
@@ -439,14 +346,14 @@ GLint init_glut(GLint *argc, char **argv)
   glutInit(argc,argv);
 
   /* size and placement hints to the window system */
-  glutInitWindowSize(picture_width, picture_height);
+  glutInitWindowSize(vpd, vpd);
   glutInitWindowPosition(10,10);
 
   /* double buffered, RGB color mode */
   glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
 
   /* create a GLUT window (not drawn until glutMainLoop() is entered) */
-  id = glutCreateWindow("GLUT Textures");
+  id = glutCreateWindow("Voronoi Diagram Mosaics");
 
   /* register callbacks */
 
@@ -490,9 +397,6 @@ GLint init_glut(GLint *argc, char **argv)
 
 GLvoid init_opengl()
 {
-  /* back-face culling on */
-  glEnable(GL_CULL_FACE);
-  glCullFace(GL_BACK);
 
   /* automatically scale normals to unit length after transformation */
   glEnable(GL_NORMALIZE);
