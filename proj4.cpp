@@ -61,9 +61,8 @@ GLint picture_width;
 GLint picture_height;
 static const GLint iters = 200;
 static GLint num_cones = 32;
-cone* cones;
+cone *cones, *cones_pic;
 bool sites = false;
-static const GLfloat rotate_vec[] = {0,0,1};
 bool is_rotating = false;
 bool is_pict = false;
 GLfloat t = 0;
@@ -75,16 +74,37 @@ using namespace std;
 GLvoid gen_cones()
 {
     cones = new cone[num_cones];
+    cones_pic = new cone[num_cones];
     for(int i = 0; i < num_cones; i++)
     {
         GLfloat tmpx = (GLfloat)rand()/RAND_MAX;
         GLfloat tmpy = (GLfloat)rand()/RAND_MAX;
-        cones[i].x = tmpx*2-1;
-        cones[i].y = tmpy*2-1;
+        cones[i].x = cones_pic[i].x = tmpx*2-1;
+        cones[i].y = cones_pic[i].y = tmpy*2-1;
         cones[i].color.r = rand()%255 + 1;
         cones[i].color.g = rand()%255 + 1;
         cones[i].color.b = rand()%255 + 1;
         cones[i].rot_angle = rand()%10 + 1;
+
+        GLfloat scalex = picture_width*(cones_pic[i].x + 1)/2.0;
+        GLfloat scaley = picture_height*(-cones_pic[i].y + 1)/2.0;
+
+        GLint ix = (int)(scalex+0.5);
+        GLint iy = (int)(scaley+0.5);
+
+        if(ix < 0)
+            ix = 0;
+        if(ix >= picture_width)
+            ix = picture_width-1;
+        if(iy < 0)
+            iy = 0;
+        if(iy >= picture_height)
+            iy = picture_height-1;
+
+        rgb color = picture[ix+iy*picture_width];
+        cones_pic[i].color.r = color.r;
+        cones_pic[i].color.g = color.g;
+        cones_pic[i].color.b = color.b;
     }
 }
 
@@ -120,25 +140,9 @@ GLuint draw_cone(GLint cone_num)
 {
     GLfloat r, g, b;
     if(is_pict){
-        GLfloat scalex = picture_width*(cones[cone_num].x + 1)/2.0;
-        GLfloat scaley = picture_height*(-cones[cone_num].y + 1)/2.0;
-
-        GLint ix = (int)(scalex+0.5);
-        GLint iy = (int)(scaley+0.5);
-
-        if(ix < 0)
-            ix = 0;
-        if(ix >= picture_width)
-            ix = picture_width-1;
-        if(iy < 0)
-            iy = 0;
-        if(iy >= picture_height)
-            iy = picture_height-1;
-
-        rgb color = picture[ix+iy*picture_width];
-        r = color.r/255.0;
-        g = color.g/255.0;
-        b = color.b/255.0;
+        b = cones_pic[cone_num].color.r/255.0;
+        r = cones_pic[cone_num].color.g/255.0;
+        g = cones_pic[cone_num].color.b/255.0;
     }else{
         r = (GLfloat)cones[cone_num].color.r/255;
         g = (GLfloat)cones[cone_num].color.g/255;
@@ -305,6 +309,7 @@ GLvoid menu ( int value )
         t = 0;
         num_cones = 32;
         delete [] cones;
+        delete [] cones_pic;
         gen_cones();
         break;
     case MENU_MOVE_STOP:
