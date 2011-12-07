@@ -18,35 +18,27 @@
 #define VPD_DEFAULT 800
 #define VPD_MAX     1024
 
-#define ZOOM_IN 1
-#define ZOOM_OUT 2
-#define MENU_FASTER 3
-#define MENU_SLOWER 4
-#define MENU_STOP_RUN 5
-#define MENU_3D_TEXTURE 6
-#define MENU_DOUGHNUT 7
-#define MENU_ENV_MAPPING 8
-
-#define ENV_MAPPING 1
-#define THREED_MAPPING 2
-#define DOUGHNUT_MAPPING 3
+#define MENU_SPRAY 1
+#define MENU_SITES 2
+#define MENU_RESET 3
+#define MENU_MOVE_STOP 4
+#define MENU_COLORING 5
 
 
 #define TWOPI (2.0 * M_PI)
 
 #define PI 3.14159265
 
-struct triangle{
-    int a[3];
-};
-
-struct vertex{
-    GLfloat p[3];
-};
-
 class rgb{
 public:
     unsigned char r,g,b;
+};
+
+class cone{
+public:
+    rgb color;
+    GLfloat x;
+    GLfloat y;
 };
 
 
@@ -64,6 +56,11 @@ GLuint sceneID;      /* display list ID */
 
 GLint flat_shading = 1;
 rgb* picture;
+GLint picture_width;
+GLint picture_height;
+static const GLint iters = 200;
+static GLint num_cones = 32;
+cone* cones;
 
 /* --------------------------------------------- */
 
@@ -149,16 +146,35 @@ GLfloat *calc_tex_coord(GLfloat *normal)
     pixel = new GLfloat[2];
     pixel[0] = (1 + normal[0])/2;
     pixel[1] = (1 + normal[1])/2;
-//    pixel[0] = normal[0];
-//    pixel[1] = normal[1];
     return pixel;
+}
+
+GLvoid gen_cones()
+{
+    cones = new cone[num_cones];
+    for(int i = 0; i < num_cones; i++)
+    {
+//        srand(time(0));
+        GLfloat tmpx = (GLfloat)rand()/RAND_MAX;
+        GLfloat tmpy = (GLfloat)rand()/RAND_MAX;
+        cones[i].x = tmpx*2-1;
+        cones[i].y = tmpy*2-1;
+        cones[i].color.r = rand()%255 + 1;
+        cones[i].color.g = rand()%255 + 1;
+        cones[i].color.b = rand()%255 + 1;
+//        cones[i].color.r = 255/(i+1);
+//        cones[i].color.g = 255/(i+1);
+//        cones[i].color.b = 255/(i+1);
+
+        printf("Cone %i: %i %i %i\n", i, cones[i].color.r,cones[i].color.g,cones[i].color.b);
+    }
 }
 
 GLvoid init_lightsource (  )
 {
-  GLfloat light_ambient[] = { .1, .1, .1, 1.0 };
-  GLfloat light_diffuse[] = { .9, .9, .9, 1.0 };
-  GLfloat light_specular[] = { 0, 0, 0, 1.0 };
+  GLfloat light_ambient[] = { 1,1,1,1};
+  GLfloat light_diffuse[] = { 1,1,1,1};
+  GLfloat light_specular[] = {1,1,1,1};
   GLfloat light_position[] = { -2.0, -2.0, -2.0, 0.0 };
 
   glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient);
@@ -176,7 +192,6 @@ GLvoid init_lightsource (  )
 rgb* read_ppm_file(const char* filename)
 {
     rgb* pixels;
-    int res_x, res_y;
     ifstream reader;
     reader.open(filename);
     if(!reader)
@@ -190,15 +205,15 @@ rgb* read_ppm_file(const char* filename)
     reader >> c;
     assert(c=='6');
 
-    reader >> res_x >> res_y;
+    reader >> picture_width >> picture_height;
 
     int i;
     reader >> i;
     assert(i==255);
 
-    pixels = new rgb[res_x*res_y];
+    pixels = new rgb[picture_width*picture_height];
 
-    reader.read((char*)pixels, res_x*res_y*sizeof(rgb));
+    reader.read((char*)pixels, picture_width*picture_height*sizeof(rgb));
     return pixels;
 }
 
@@ -222,17 +237,67 @@ GLvoid set_material_properties ( GLfloat r, GLfloat g, GLfloat b )
 /*
 */
 
-GLuint draw_triangles ( )
+GLuint draw_cone(GLint cone_num)
 {
+    GLfloat r = (GLfloat)cones[cone_num].color.r/255;
+    GLfloat g = (GLfloat)cones[cone_num].color.g/255;
+    GLfloat b = (GLfloat)cones[cone_num].color.b/255;
+
+    set_material_properties(r, g, b);
+
+    glBegin(GL_TRIANGLE_FAN);
+
+    glVertex3f(0,0,0);
+    glVertex3f(1,0,1);
+
+    for(int i = 1; i < iters; i++)
+    {
+        glVertex4f(cos(2*PI*i/iters), sin(2*PI*i/iters), 1, 0);
+    }
+
+    glVertex3f(1,0,1);
 
 
+    glEnd();
+
+    glTranslatef(cones[cone_num].x, cones[cone_num].y, 0);
+}
+
+GLuint draw_sites()
+{
+    set_material_properties(0, 0, 0);
+
+    glBegin(GL_POINTS);
+
+    for(GLint i = 0; i < num_cones; i++)
+    {
+        glVertex3f(cones[i].x, cones[i].y, -0.5);
+    }
+
+    glEnd();
+}
+
+GLuint draw_cones ( )
+{
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+
+    set_material_properties(1,1,1);
+
+    draw_sites();
+
+    for(GLint i = 0; i < num_cones; i++)
+    {
+        draw_cone(i);
+    }
+    
+    glPopMatrix();
 }
 
 
 GLuint draw_scene ( )
 {
-    set_material_properties(1,1,1);
-    draw_triangles();
+    draw_cones();
     glPopMatrix();
 }
 
@@ -245,6 +310,7 @@ GLvoid draw()
   /* set the projection matrix */
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
+  glOrtho(-1,1,-1,1,1,-3);
 
 
   glMatrixMode(GL_MODELVIEW);
@@ -338,21 +404,15 @@ GLvoid menu ( int value )
 {
   switch(value)
     {
-    case ZOOM_IN:
+    case MENU_SPRAY:
         break;
-    case ZOOM_OUT:
+    case MENU_SITES:
         break;
-    case MENU_FASTER:
+    case MENU_RESET:
         break;
-    case MENU_SLOWER:
+    case MENU_MOVE_STOP:
         break;
-    case MENU_STOP_RUN:
-        break;
-    case MENU_3D_TEXTURE:
-        break;
-    case MENU_ENV_MAPPING:
-        break;
-    case MENU_DOUGHNUT:
+    case MENU_COLORING:
         break;
     }
 }
@@ -387,7 +447,7 @@ GLint init_glut(GLint *argc, char **argv)
   glutInit(argc,argv);
 
   /* size and placement hints to the window system */
-  glutInitWindowSize(vpd, vpd);
+  glutInitWindowSize(picture_width, picture_height);
   glutInitWindowPosition(10,10);
 
   /* double buffered, RGB color mode */
@@ -423,14 +483,11 @@ GLint init_glut(GLint *argc, char **argv)
 
   /* create menu */
   GLint menuID = glutCreateMenu(menu);
-  glutAddMenuEntry("Zoom In",ZOOM_IN);
-  glutAddMenuEntry("Zoom Out",ZOOM_OUT);
-  glutAddMenuEntry("Animate Faster",MENU_FASTER);
-  glutAddMenuEntry("Animate Slower",MENU_SLOWER);
-  glutAddMenuEntry("Stop/Run", MENU_STOP_RUN);
-  glutAddMenuEntry("3D Texture", MENU_3D_TEXTURE);
-  glutAddMenuEntry("Environment Mapping", MENU_ENV_MAPPING);
-  glutAddMenuEntry("Doughnut", MENU_DOUGHNUT);
+  glutAddMenuEntry("Spray more points",MENU_SPRAY);
+  glutAddMenuEntry("Show/hide sites",MENU_SITES);
+  glutAddMenuEntry("Reset",MENU_RESET);
+  glutAddMenuEntry("Move/stop points",MENU_MOVE_STOP);
+  glutAddMenuEntry("Toggle coloring", MENU_COLORING);
   glutSetMenu(menuID);
   glutAttachMenu(GLUT_RIGHT_BUTTON);
 
@@ -475,19 +532,13 @@ GLint main(GLint argc, char **argv)
 
     picture = read_ppm_file(filename.c_str());
 
+    gen_cones();
+
   /* initialize GLUT: register callbacks, etc */
   wid = init_glut(&argc, argv);
 
   /* any OpenGL state initialization we need to do */
   init_opengl();
-
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-  glEnable(GL_TEXTURE_2D);
-  glEnable(GL_TEXTURE_3D);
 
   glutMainLoop();
 
