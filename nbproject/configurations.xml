@@ -32,7 +32,7 @@
           <buildCommandWorkingDir>.</buildCommandWorkingDir>
           <buildCommand>$(MAKE) -f Makefile</buildCommand>
           <cleanCommand>$(MAKE) -f Makefile clean</cleanCommand>
-          <executablePath></executablePath>
+          <executablePath>./proj4</executablePath>
           <ccTool>
             <incDir>
               <pElem>/usr/X11R6/include</pElem>

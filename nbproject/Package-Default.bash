@@ -11,8 +11,8 @@ CND_CONF=Default
 CND_DISTDIR=dist
 NBTMPDIR=build/${CND_CONF}/${CND_PLATFORM}/tmp-packaging
 TMPDIRNAME=tmp-packaging
-OUTPUT_PATH=MissingOutputInProject
-OUTPUT_BASENAME=MissingOutputInProject
+OUTPUT_PATH=./proj4
+OUTPUT_BASENAME=proj4
 PACKAGE_TOP_DIR=project4/
 
 # Functions

@@ -243,7 +243,10 @@ GLuint draw_cone(GLint cone_num)
     GLfloat g = (GLfloat)cones[cone_num].color.g/255;
     GLfloat b = (GLfloat)cones[cone_num].color.b/255;
 
+    glPushMatrix();
     set_material_properties(r, g, b);
+
+    glTranslatef(cones[cone_num].x, cones[cone_num].y, 0);
 
     glBegin(GL_TRIANGLE_FAN);
 
@@ -257,15 +260,13 @@ GLuint draw_cone(GLint cone_num)
 
     glVertex3f(1,0,1);
 
-
     glEnd();
-
-    glTranslatef(cones[cone_num].x, cones[cone_num].y, 0);
+    glPopMatrix();
 }
 
 GLuint draw_sites()
 {
-    set_material_properties(0, 0, 0);
+    set_material_properties(1, 1, 1);
 
     glBegin(GL_POINTS);
 
@@ -280,9 +281,7 @@ GLuint draw_sites()
 GLuint draw_cones ( )
 {
     glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-
-    set_material_properties(1,1,1);
+    glLoadIdentity();
 
     draw_sites();
 
@@ -290,15 +289,8 @@ GLuint draw_cones ( )
     {
         draw_cone(i);
     }
-    
-    glPopMatrix();
-}
 
-
-GLuint draw_scene ( )
-{
-    draw_cones();
-    glPopMatrix();
+    draw_sites();
 }
 
 /* --------------------------------------------- */
@@ -312,14 +304,8 @@ GLvoid draw()
   glLoadIdentity();
   glOrtho(-1,1,-1,1,1,-3);
 
-
-  glMatrixMode(GL_MODELVIEW);
-  glLoadIdentity();
-
   /* initialize light */
   init_lightsource();
-
-  
 
   /* ensure we're drawing to the correct GLUT window */
   glutSetWindow(wid);
@@ -328,7 +314,7 @@ GLvoid draw()
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   /* DRAW WHAT IS IN THE DISPLAY LIST */
-  draw_scene();
+  draw_cones();
 
   /* flush the pipeline */
   glFlush();
@@ -405,10 +391,16 @@ GLvoid menu ( int value )
   switch(value)
     {
     case MENU_SPRAY:
+        num_cones *= 2;
+        delete [] cones;
+        gen_cones();
         break;
     case MENU_SITES:
         break;
     case MENU_RESET:
+        num_cones = 32;
+        delete [] cones;
+        gen_cones();
         break;
     case MENU_MOVE_STOP:
         break;
