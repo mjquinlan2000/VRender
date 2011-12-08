@@ -66,6 +66,7 @@ bool sites = false;
 bool is_rotating = false;
 bool is_pict = false;
 GLfloat t = 0;
+bool needs_draw = true;
 
 /* --------------------------------------------- */
 
@@ -206,30 +207,34 @@ GLuint draw_cones ( )
 
 GLvoid draw()
 {
-  /* set the projection matrix */
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  glOrtho(-1,1,-1,1,1,-3);
+    if(is_rotating || needs_draw){
+      /* set the projection matrix */
+      glMatrixMode(GL_PROJECTION);
+      glLoadIdentity();
+      glOrtho(-1,1,-1,1,1,-3);
 
-  /* initialize light */
-//  init_lightsource();
+      /* initialize light */
+    //  init_lightsource();
 
-  /* ensure we're drawing to the correct GLUT window */
-  glutSetWindow(wid);
+      /* ensure we're drawing to the correct GLUT window */
+      glutSetWindow(wid);
 
-  /* clear the color buffers */
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      /* clear the color buffers */
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  /* DRAW WHAT IS IN THE DISPLAY LIST */
-  draw_cones();
+      /* DRAW WHAT IS IN THE DISPLAY LIST */
+      draw_cones();
 
-  /* flush the pipeline */
-  glFlush();
+      /* flush the pipeline */
+      glFlush();
 
-  /* look at our handiwork */
-  glutSwapBuffers();
+      /* look at our handiwork */
+      glutSwapBuffers();
 
-  glutPostRedisplay();
+      glutPostRedisplay();
+
+      needs_draw = false;
+    }
 }
 
 /* --------------------------------------------- */
@@ -295,15 +300,20 @@ GLvoid keyboard(GLubyte key, GLint x, GLint y)
 
 GLvoid menu ( int value )
 {
+    
   switch(value)
     {
     case MENU_SPRAY:
+        t = 0;
         num_cones *= 2;
         delete [] cones;
+        delete [] cones_pic;
         gen_cones();
+        needs_draw = true;
         break;
     case MENU_SITES:
         sites = !sites;
+        needs_draw = true;
         break;
     case MENU_RESET:
         t = 0;
@@ -311,12 +321,15 @@ GLvoid menu ( int value )
         delete [] cones;
         delete [] cones_pic;
         gen_cones();
+        needs_draw = true;
         break;
     case MENU_MOVE_STOP:
         is_rotating = !is_rotating;
+        needs_draw = true;
         break;
     case MENU_COLORING:
         is_pict = !is_pict;
+        needs_draw = true;
         break;
     }
 }
